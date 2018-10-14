@@ -139,6 +139,9 @@ int main(int argc, char *argv[])
     addOption(parser, ArgParseOption("o", "overlap", "Number of overlapping reads (o + 1 Strings will be searched at once beginning with their overlap region)", ArgParseArgument::INTEGER, "INT"));
     setRequired(parser, "overlap");
 
+    addOption(parser, ArgParseOption("b", "bound", "Upper bound for mappability values (can speed up the running time)", ArgParseArgument::INTEGER, "INT"));
+    setDefaultValue(parser, "bound", 0);
+
     addOption(parser, ArgParseOption("m", "mmap",
         "Turns memory-mapping on, i.e. the index is not loaded into RAM but accessed directly in secondary-memory. "
         "This makes the algorithm only slightly slower but the index does not have to be loaded into main memory "
@@ -161,6 +164,7 @@ int main(int argc, char *argv[])
     opt.indels = isSet(parser, "indels");
     opt.high = isSet(parser, "high");
 
+    getOptionValue(searchParams.bound, parser, "bound");
     getOptionValue(searchParams.length, parser, "length");
     getOptionValue(searchParams.threads, parser, "threads");
     getOptionValue(searchParams.overlap, parser, "overlap");

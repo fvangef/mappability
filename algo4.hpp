@@ -37,9 +37,12 @@ inline void runAlgo4(TIndex & index, TText const & text, TContainer & c, SearchP
             _optimalSearchSchemeComputeFixedBlocklength(scheme, new_overlap); // only do when new_overlap != overlap
 
             TIter it_zero_errors[end_pos - begin_pos];
+            int one_error_iters_count[end_pos - begin_pos] = {0};
+            std::vector<std::vector<TIter>> one_error_iters(end_pos - begin_pos);
+
             value_type hits[end_pos - begin_pos] = {};
 
-            auto delegate = [&hits, &it_zero_errors, begin_pos, &params, textLength, new_overlap, &text](
+            auto delegate = [&hits, &it_zero_errors, &one_error_iters, &one_error_iters_count, begin_pos, &params, textLength, new_overlap, &text](
                 TIter it, auto const & /*read*/, unsigned const errors_spent)
             {
                 uint64_t const bb = std::min(textLength - 1, begin_pos + params.length - 1 + params.length - new_overlap);
@@ -48,6 +51,7 @@ inline void runAlgo4(TIndex & index, TText const & text, TContainer & c, SearchP
                     extend3<errors>(it, hits, it_zero_errors, errors - errors_spent, text, params.length,
                         begin_pos + params.length - new_overlap, begin_pos + params.length - 1, // searched interval
                         begin_pos, bb // entire interval
+                        , one_error_iters, one_error_iters_count
                     );
                 }
                 else
@@ -65,7 +69,7 @@ inline void runAlgo4(TIndex & index, TText const & text, TContainer & c, SearchP
             for (uint64_t j = begin_pos; j < end_pos; ++j)
             {
                 if (countOccurrences(it_zero_errors[j - begin_pos]) > 1) // guaranteed to exist, since there has to be at least one match!
-                {;
+                {
                     for (auto const & occ : getOccurrences(it_zero_errors[j-begin_pos], Fwd()))
                     {
                         auto const occ_pos = posGlobalize(occ, limits);
@@ -75,6 +79,22 @@ inline void runAlgo4(TIndex & index, TText const & text, TContainer & c, SearchP
                 else
                 {
                     c[j] = hits[j - begin_pos];
+                }
+
+                uint64_t const hit_count = std::min(
+                    (uint64_t) one_error_iters_count[j - begin_pos] + countOccurrences(it_zero_errors[j - begin_pos]),
+                    params.bound);
+
+                if (hit_count >= params.bound)
+                {
+                    for (auto const & single_it : one_error_iters[j - begin_pos])
+                    {
+                        for (auto const & occ : getOccurrences(single_it))
+                        {
+                            auto const occ_pos = posGlobalize(occ, limits);
+                            c[occ_pos] = hit_count;
+                        }
+                    }
                 }
             }
         }
