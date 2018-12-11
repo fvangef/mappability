@@ -3,6 +3,7 @@ cmake_minimum_required (VERSION 3.0.0)
 project (mappability CXX)
 set (CXX11_FOUND "1")
 
+#set (CMAKE_CXX_COMPILER "g++-6")
 
 if (NOT DEFINED ${CMAKE_BUILD_TYPE})
     set (CMAKE_BUILD_TYPE Release)
@@ -42,3 +43,9 @@ target_link_libraries (mappability_dump ${SEQAN_LIBRARIES})
 
 add_executable (heatmap heatmap.cpp)
 target_link_libraries (heatmap ${SEQAN_LIBRARIES})
+
+add_executable (cut_n cut_n.cpp)
+target_link_libraries (cut_n ${SEQAN_LIBRARIES})
+
+add_executable (insert_n insert_n.cpp)
+target_link_libraries (insert_n ${SEQAN_LIBRARIES})

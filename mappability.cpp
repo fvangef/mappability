@@ -20,6 +20,34 @@ struct Options
     CharString alphabet;
 };
 
+namespace seqan {
+    template <typename TText, typename TOccSpec, typename TIndexSpec, typename TSpec, typename TSize/*, typename TChar*/>
+    inline bool
+    _getNodeByChar(Iter<Index<TText, FMIndex<TOccSpec, TIndexSpec> >, VSTree<TopDown<TSpec> > > const &it,
+                   typename VertexDescriptor<Index<TText, FMIndex<TOccSpec, TIndexSpec> > >::Type const &vDesc,
+                   Pair<typename Size<Index<TText, FMIndex<TOccSpec, TIndexSpec> > >::Type> &_range,
+                   TSize &smaller,
+                   Dna5 c) {
+        typedef Index<TText, FMIndex<TOccSpec, TIndexSpec/*FMIndexConfig<TOccSpec, TLengthSum> */> > TIndex;
+        typedef typename Fibre<TIndex, FibreLF>::Type TLF;
+
+        if (c == Dna5('N'))
+            return false;
+
+        TIndex const &index = container(it);
+        TLF const &lf = indexLF(index);
+
+        _range = range(index, vDesc);
+
+        TSize _smaller;
+        _range.i1 = lf(_range.i1, c, _smaller);
+        _range.i2 = lf(_range.i2, c, smaller);
+        smaller -= _smaller;
+
+        return _range.i1 < _range.i2;
+    }
+};
+
 #include "common.h"
 #include "algo2.hpp"
 #include "algo3.hpp"
@@ -196,8 +224,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        // run<Dna5>(opt, searchParams);
-        cerr << "TODO: Dna5 alphabet has not been tested yet. Please do so and remove this error message afterwards.\n";
-        exit(1);
+        cerr << "NOTE: k-mers with N bases are not considered and get a mappability value of 0.\n";
+        run<Dna5>(opt, searchParams);
     }
 }

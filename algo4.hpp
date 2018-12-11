@@ -12,7 +12,8 @@ inline void runAlgo4(TIndex & index, TText const & text, TContainer & c, SearchP
 
     const uint64_t max_i = textLength - params.length + 1;
     const uint64_t step_size = params.length - params.overlap + 1;
-  //  #pragma omp parallel for schedule(dynamic, std::max(1ul, max_i/(step_size*params.threads*50))) num_threads(params.threads)
+
+    #pragma omp parallel for schedule(dynamic, std::max(1ul, max_i/(step_size*params.threads*50))) num_threads(params.threads)
     for (uint64_t i = 0; i < max_i; i += step_size)
     {
         uint64_t max_pos = std::min(i + params.length - params.overlap, textLength - params.length) + 1;
@@ -60,12 +61,38 @@ inline void runAlgo4(TIndex & index, TText const & text, TContainer & c, SearchP
             };
 
             auto const & needle = infix(text, begin_pos + params.length - new_overlap, begin_pos + params.length);
+
+            bool stop = false;
+            //std::cout << "Test: [" << begin_pos << ", " << end_pos << "): " << needle << "\n";
+            for (uint64_t needle_pos = 0; needle_pos < length(needle); ++needle_pos)
+                if (needle[needle_pos] == Dna5('N'))
+                    stop = true;
+
+            if (stop)
+            {
+                // std::cout << "Skip: [" << begin_pos << ", " << end_pos << ")\n";
+                continue;
+            }
+
             TIter it(index);
             _optimalSearchScheme(delegate, it, needle, scheme, HammingDistance());
             for (uint64_t j = begin_pos; j < end_pos; ++j)
             {
+                //auto const & needle2 = infix(text, j, j + params.length);
+                bool stop2 = false;
+                //std::cout << "Test: " << begin_pos << ": " << needle2 << "\n";
+                for (uint64_t needle_pos = j; needle_pos < j + params.length; ++needle_pos)
+                    if (text[needle_pos] == Dna5('N'))
+                        stop2 = true;
+
+                if (stop2)
+                {
+                    // std::cout << "Skip: " << j << "\n";
+                    continue;
+                }
+
                 if (countOccurrences(it_zero_errors[j - begin_pos]) > 1) // guaranteed to exist, since there has to be at least one match!
-                {;
+                {
                     for (auto const & occ : getOccurrences(it_zero_errors[j-begin_pos], Fwd()))
                     {
                         auto const occ_pos = posGlobalize(occ, limits);

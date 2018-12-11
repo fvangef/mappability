@@ -92,7 +92,7 @@ struct SearchParams
     unsigned overlap;
     unsigned threads;
     // bool indels;
-    static constexpr bool outputProgress = false;
+    static constexpr bool outputProgress = true;
 };
 
 std::string mytime()
