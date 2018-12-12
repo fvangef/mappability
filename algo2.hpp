@@ -1,7 +1,7 @@
 using namespace seqan;
 
-template <typename TIter, typename value_type, typename TText>
-inline void extendExact(TIter it, value_type * hits, TText const & text, unsigned const length,
+template <typename TIter, typename value_type, typename TVector, typename TText>
+inline void extendExact(TIter it, value_type * hits, TVector & hits_occ, TText const & text, unsigned const length,
     uint64_t a, uint64_t b, // searched interval
     uint64_t ab, uint64_t bb // entire interval
 )
@@ -11,6 +11,8 @@ inline void extendExact(TIter it, value_type * hits, TText const & text, unsigne
     if (b - a + 1 == length)
     {
         hits[a-ab] = std::min((uint64_t) countOccurrences(it) + hits[a-ab], max_val);
+        for (auto occ:getOccurrences(it))
+            hits_occ.at(a-ab).push_back(occ);
         return;
     }
     //if (b + 1 <= bb)
@@ -26,7 +28,7 @@ inline void extendExact(TIter it, value_type * hits, TText const & text, unsigne
                 success = goDown(it2, text[i], Rev());
             }
             if (success)
-                extendExact(it2, hits, text, length, a, b_new, ab, bb);
+                extendExact(it2, hits, hits_occ, text, length, a, b_new, ab, bb);
         }
     //}
 
@@ -39,21 +41,21 @@ inline void extendExact(TIter it, value_type * hits, TText const & text, unsigne
             if(!goDown(it, text[i], Fwd()))
                 return;
         }
-        extendExact(it, hits, text, length, a_new, b, ab, bb);
+        extendExact(it, hits, hits_occ, text, length, a_new, b, ab, bb);
     }
 }
 
 // forward
-template <typename TIter, typename value_type, typename TText>
-inline void extend(TIter it, value_type * hits, unsigned errors_left, TText const & text,
+template <typename TIter, typename value_type, typename TVector, typename TText>
+inline void extend(TIter it, value_type * hits, TVector & hits_occ, unsigned errors_left, TText const & text,
             unsigned const length,
             uint64_t a, uint64_t b, // searched interval
             uint64_t ab, uint64_t bb // entire interval
 );
 
 // TODO: remove text everywhere: auto & text = indexText(index(it));
-template <typename TIter, typename value_type, typename TText>
-inline void approxSearch(TIter it, value_type * hits, unsigned errors_left, TText const & text, unsigned const length,
+template <typename TIter, typename value_type, typename TVector, typename TText>
+inline void approxSearch(TIter it, value_type * hits, TVector & hits_occ, unsigned errors_left, TText const & text, unsigned const length,
             uint64_t a, uint64_t b, // searched interval
             uint64_t ab, uint64_t bb, // entire interval
             uint64_t b_new,
@@ -62,7 +64,7 @@ inline void approxSearch(TIter it, value_type * hits, unsigned errors_left, TTex
 {
     if (b == b_new)
     {
-        extend(it, hits, errors_left, text, length, a, b, ab, bb);
+        extend(it, hits, hits_occ, errors_left, text, length, a, b, ab, bb);
         return;
     }
     if (errors_left > 0)
@@ -71,7 +73,7 @@ inline void approxSearch(TIter it, value_type * hits, unsigned errors_left, TTex
         {
             do {
                 bool delta = !ordEqual(parentEdgeLabel(it, Rev()), text[b + 1]);
-                approxSearch(it, hits, errors_left - delta, text, length, a, b + 1, ab, bb, b_new, Rev());
+                approxSearch(it, hits, hits_occ, errors_left - delta, text, length, a, b + 1, ab, bb, b_new, Rev());
             } while (goRight(it, Rev()));
         }
     }
@@ -82,11 +84,11 @@ inline void approxSearch(TIter it, value_type * hits, unsigned errors_left, TTex
             if (!goDown(it, text[i], Rev()))
                 return;
         }
-        extendExact(it, hits, text, length, a, b_new, ab, bb);
+        extendExact(it, hits, hits_occ, text, length, a, b_new, ab, bb);
     }
 }
-template <typename TIter, typename value_type, typename TText>
-inline void approxSearch(TIter it, value_type * hits, unsigned errors_left, TText const & text, unsigned const length,
+template <typename TIter, typename value_type, typename TVector, typename TText>
+inline void approxSearch(TIter it, value_type * hits, TVector & hits_occ, unsigned errors_left, TText const & text, unsigned const length,
                   uint64_t a, uint64_t b, // searched interval
                   uint64_t ab, uint64_t bb, // entire interval
                   int64_t a_new,
@@ -95,7 +97,7 @@ inline void approxSearch(TIter it, value_type * hits, unsigned errors_left, TTex
 {
     if (a == a_new)
     {
-        extend(it, hits, errors_left, text, length, a, b, ab, bb);
+        extend(it, hits, hits_occ, errors_left, text, length, a, b, ab, bb);
         return;
     }
     if (errors_left > 0)
@@ -104,7 +106,7 @@ inline void approxSearch(TIter it, value_type * hits, unsigned errors_left, TTex
         {
             do {
                 bool delta = !ordEqual(parentEdgeLabel(it, Fwd()), text[a - 1]);
-                approxSearch(it, hits, errors_left - delta, text, length, a - 1, b, ab, bb, a_new, Fwd());
+                approxSearch(it, hits, hits_occ, errors_left - delta, text, length, a - 1, b, ab, bb, a_new, Fwd());
             } while (goRight(it, Fwd()));
         }
     }
@@ -115,26 +117,27 @@ inline void approxSearch(TIter it, value_type * hits, unsigned errors_left, TTex
             if (!goDown(it, text[i], Fwd()))
                 return;
         }
-        extendExact(it, hits, text, length, a_new, b, ab, bb);
+        extendExact(it, hits, hits_occ, text, length, a_new, b, ab, bb);
     }
 }
 
-template <typename TIter, typename value_type, typename TText>
-inline void extend(TIter it, value_type * hits, unsigned errors_left, TText const & text, unsigned const length,
+template <typename TIter, typename value_type, typename TVector, typename TText>
+inline void extend(TIter it, value_type * hits, TVector & hits_occ, unsigned errors_left, TText const & text, unsigned const length,
     uint64_t a, uint64_t b, // searched interval
     uint64_t ab, uint64_t bb // entire interval
 )
 {
     constexpr uint64_t max_val = std::numeric_limits<value_type>::max();
-
     if (errors_left == 0)
     {
-        extendExact(it, hits, text, length, a, b, ab, bb);
+        extendExact(it, hits, hits_occ, text, length, a, b, ab, bb);
         return;
     }
     if (b - a + 1 == length)
     {
         hits[a-ab] = std::min((uint64_t) countOccurrences(it) + hits[a-ab], max_val);
+        for (auto occ:getOccurrences(it))
+            hits_occ.at(a-ab).push_back(occ);
         return;
     }
     //if (b + 1 <= bb)
@@ -143,7 +146,7 @@ inline void extend(TIter it, value_type * hits, unsigned errors_left, TText cons
         uint64_t b_new = b + (((brm - b) + 2 - 1) >> 1); // ceil((bb - b)/2)
         if (b_new <= bb)
         {
-            approxSearch(it, hits, errors_left, text, length,
+            approxSearch(it, hits, hits_occ, errors_left, text, length,
                          a, b, // searched interval
                          ab, bb, // entire interval
                          b_new,
@@ -156,7 +159,7 @@ inline void extend(TIter it, value_type * hits, unsigned errors_left, TText cons
     {
         int64_t alm = b + 1 - length;
         int64_t a_new = alm + std::max((int64_t) ((a - alm) - 1) >> 1, (int64_t)0);
-        approxSearch(it, hits, errors_left, text, length,
+        approxSearch(it, hits, hits_occ, errors_left, text, length,
                      a, b, // searched interval
                      ab, bb, // entire interval
                      a_new,

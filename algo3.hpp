@@ -1,7 +1,7 @@
 using namespace seqan;
 
-template <unsigned max_errors, typename TIter, typename value_type, typename TText>
-inline void extendExact3(TIter it, value_type * hits, TIter * it_zero_errors, TText const & text, unsigned const length,
+template <unsigned max_errors, typename TIter, typename value_type, typename TVector, typename TText>
+inline void extendExact3(TIter it, value_type * hits, TVector & hits_occ, TIter * it_zero_errors, TText const & text, unsigned const length,
     uint64_t a, uint64_t b, // searched interval
     uint64_t ab, uint64_t bb // entire interval
 )
@@ -15,6 +15,8 @@ inline void extendExact3(TIter it, value_type * hits, TIter * it_zero_errors, TT
             // std::cout << "set zero it for [" << a-ab << "]\n";
         } // TODO: könnte man für max_errors > 0 rausoptimieren
         hits[a-ab] = std::min((uint64_t) countOccurrences(it) + hits[a-ab], max_val);
+        for (auto occ:getOccurrences(it))
+            hits_occ.at(a-ab).push_back(occ);
         return;
     }
     //if (b + 1 <= bb)
@@ -30,7 +32,7 @@ inline void extendExact3(TIter it, value_type * hits, TIter * it_zero_errors, TT
                 success = goDown(it2, text[i], Rev());
             }
             if (success)
-                extendExact3<max_errors>(it2, hits, it_zero_errors, text, length, a, b_new, ab, bb);
+                extendExact3<max_errors>(it2, hits, hits_occ, it_zero_errors, text, length, a, b_new, ab, bb);
         }
     //}
 
@@ -43,20 +45,20 @@ inline void extendExact3(TIter it, value_type * hits, TIter * it_zero_errors, TT
             if(!goDown(it, text[i], Fwd()))
                 return;
         }
-        extendExact3<max_errors>(it, hits, it_zero_errors, text, length, a_new, b, ab, bb);
+        extendExact3<max_errors>(it, hits, hits_occ, it_zero_errors, text, length, a_new, b, ab, bb);
     }
 }
 
 // forward
-template <unsigned max_errors, typename TIter, typename value_type, typename TText>
-inline void extend3(TIter it, value_type * hits, TIter * it_zero_errors, unsigned errors_left, TText const & text, unsigned const length,
+template <unsigned max_errors, typename TIter, typename value_type, typename TVector, typename TText>
+inline void extend3(TIter it, value_type * hits, TVector & hits_occ, TIter * it_zero_errors, unsigned errors_left, TText const & text, unsigned const length,
             uint64_t a, uint64_t b, // searched interval
             uint64_t ab, uint64_t bb // entire interval
 );
 
 // TODO: remove text everywhere: auto & text = indexText(index(it));
-template <unsigned max_errors, typename TIter, typename value_type, typename TText>
-inline void approxSearch3(TIter it, value_type * hits, TIter * it_zero_errors, unsigned errors_left, TText const & text, unsigned const length,
+template <unsigned max_errors, typename TIter, typename value_type, typename TVector, typename TText>
+inline void approxSearch3(TIter it, value_type * hits, TVector & hits_occ,  TIter * it_zero_errors, unsigned errors_left, TText const & text, unsigned const length,
             uint64_t a, uint64_t b, // searched interval
             uint64_t ab, uint64_t bb, // entire interval
             uint64_t b_new,
@@ -65,7 +67,7 @@ inline void approxSearch3(TIter it, value_type * hits, TIter * it_zero_errors, u
 {
     if (b == b_new)
     {
-        extend3<max_errors>(it, hits, it_zero_errors, errors_left, text, length, a, b, ab, bb);
+        extend3<max_errors>(it, hits, hits_occ, it_zero_errors, errors_left, text, length, a, b, ab, bb);
         return;
     }
     if (errors_left > 0)
@@ -74,7 +76,7 @@ inline void approxSearch3(TIter it, value_type * hits, TIter * it_zero_errors, u
         {
             do {
                 bool delta = !ordEqual(parentEdgeLabel(it, Rev()), text[b + 1]);
-                approxSearch3<max_errors>(it, hits, it_zero_errors, errors_left - delta, text, length, a, b + 1, ab, bb, b_new, Rev());
+                approxSearch3<max_errors>(it, hits, hits_occ, it_zero_errors, errors_left - delta, text, length, a, b + 1, ab, bb, b_new, Rev());
             } while (goRight(it, Rev()));
         }
     }
@@ -85,11 +87,11 @@ inline void approxSearch3(TIter it, value_type * hits, TIter * it_zero_errors, u
             if (!goDown(it, text[i], Rev()))
                 return;
         }
-        extendExact3<max_errors>(it, hits, it_zero_errors, text, length, a, b_new, ab, bb);
+        extendExact3<max_errors>(it, hits, hits_occ, it_zero_errors, text, length, a, b_new, ab, bb);
     }
 }
-template <unsigned max_errors, typename TIter, typename value_type, typename TText>
-inline void approxSearch3(TIter it, value_type * hits, TIter * it_zero_errors, unsigned errors_left, TText const & text, unsigned const length,
+template <unsigned max_errors, typename TIter, typename value_type, typename TVector, typename TText>
+inline void approxSearch3(TIter it, value_type * hits, TVector & hits_occ, TIter * it_zero_errors, unsigned errors_left, TText const & text, unsigned const length,
                   uint64_t a, uint64_t b, // searched interval
                   uint64_t ab, uint64_t bb, // entire interval
                   int64_t a_new,
@@ -98,7 +100,7 @@ inline void approxSearch3(TIter it, value_type * hits, TIter * it_zero_errors, u
 {
     if (a == a_new)
     {
-        extend3<max_errors>(it, hits, it_zero_errors, errors_left, text, length, a, b, ab, bb);
+        extend3<max_errors>(it, hits, hits_occ, it_zero_errors, errors_left, text, length, a, b, ab, bb);
         return;
     }
     if (errors_left > 0)
@@ -107,7 +109,7 @@ inline void approxSearch3(TIter it, value_type * hits, TIter * it_zero_errors, u
         {
             do {
                 bool delta = !ordEqual(parentEdgeLabel(it, Fwd()), text[a - 1]);
-                approxSearch3<max_errors>(it, hits, it_zero_errors, errors_left - delta, text, length, a - 1, b, ab, bb, a_new, Fwd());
+                approxSearch3<max_errors>(it, hits, hits_occ, it_zero_errors, errors_left - delta, text, length, a - 1, b, ab, bb, a_new, Fwd());
             } while (goRight(it, Fwd()));
         }
     }
@@ -118,12 +120,12 @@ inline void approxSearch3(TIter it, value_type * hits, TIter * it_zero_errors, u
             if (!goDown(it, text[i], Fwd()))
                 return;
         }
-        extendExact3<max_errors>(it, hits, it_zero_errors, text, length, a_new, b, ab, bb);
+        extendExact3<max_errors>(it, hits, hits_occ, it_zero_errors, text, length, a_new, b, ab, bb);
     }
 }
 
-template <unsigned max_errors, typename TIter, typename value_type, typename TText>
-inline void extend3(TIter it, value_type * hits, TIter * it_zero_errors, unsigned errors_left, TText const & text, unsigned const length,
+template <unsigned max_errors, typename TIter, typename value_type, typename TVector, typename TText>
+inline void extend3(TIter it, value_type * hits, TVector & hits_occ, TIter * it_zero_errors, unsigned errors_left, TText const & text, unsigned const length,
     uint64_t a, uint64_t b, // searched interval
     uint64_t ab, uint64_t bb // entire interval
 )
@@ -132,7 +134,7 @@ inline void extend3(TIter it, value_type * hits, TIter * it_zero_errors, unsigne
 
     if (errors_left == 0)
     {
-        extendExact3<max_errors>(it, hits, it_zero_errors, text, length, a, b, ab, bb);
+        extendExact3<max_errors>(it, hits, hits_occ, it_zero_errors, text, length, a, b, ab, bb);
         return;
     }
     if (b - a + 1 == length)
@@ -140,6 +142,8 @@ inline void extend3(TIter it, value_type * hits, TIter * it_zero_errors, unsigne
         if (max_errors == errors_left)
             it_zero_errors[a-ab] = it;
         hits[a-ab] = std::min((uint64_t) countOccurrences(it) + hits[a-ab], max_val);
+        for (auto occ:getOccurrences(it))
+            hits_occ.at(a-ab).push_back(occ);
         return;
     }
     //if (b + 1 <= bb)
@@ -148,7 +152,7 @@ inline void extend3(TIter it, value_type * hits, TIter * it_zero_errors, unsigne
         uint64_t b_new = b + (((brm - b) + 2 - 1) >> 1); // ceil((bb - b)/2)
         if (b_new <= bb)
         {
-            approxSearch3<max_errors>(it, hits, it_zero_errors, errors_left, text, length,
+            approxSearch3<max_errors>(it, hits, hits_occ, it_zero_errors, errors_left, text, length,
                          a, b, // searched interval
                          ab, bb, // entire interval
                          b_new,
@@ -161,7 +165,7 @@ inline void extend3(TIter it, value_type * hits, TIter * it_zero_errors, unsigne
     {
         int64_t alm = b + 1 - length;
         int64_t a_new = alm + std::max((int64_t) ((a - alm) - 1) >> 1, (int64_t)0);
-        approxSearch3<max_errors>(it, hits, it_zero_errors, errors_left, text, length,
+        approxSearch3<max_errors>(it, hits, hits_occ, it_zero_errors, errors_left, text, length,
                      a, b, // searched interval
                      ab, bb, // entire interval
                      a_new,
@@ -200,19 +204,20 @@ inline void runAlgo3(TIndex & index, TText const & text, TContainer & c, SearchP
         {
             TIter it_zero_errors[params.length - params.overlap + 1];
             value_type hits[params.length - params.overlap + 1] = {};
+            vector<vector<Pair<uint16_t, uint32_t>>> hits_occ(params.length - params.overlap + 1);
 
-            auto delegate = [&hits, &it_zero_errors, i, textLength, params, &text](auto it, auto const & /*read*/, unsigned const errors_spent) {
+            auto delegate = [&hits, &hits_occ, &it_zero_errors, i, textLength, params, &text](auto it, auto const & /*read*/, unsigned const errors_spent) {
                 uint64_t const bb = std::min(textLength - 1, i + params.length - 1 + params.length - params.overlap);
                 if (errors_spent == 0)
                 {
-                    extend3<errors>(it, hits, it_zero_errors, errors - errors_spent, text, params.length,
+                    extend3<errors>(it, hits, hits_occ, it_zero_errors, errors - errors_spent, text, params.length,
                         i + params.length - params.overlap, i + params.length - 1, // searched interval
                         i, bb // entire interval
                     );
                 }
                 else
                 {
-                    extend(it, hits, errors - errors_spent, text, params.length,
+                    extend(it, hits, hits_occ, errors - errors_spent, text, params.length,
                         i + params.length - params.overlap, i + params.length - 1, // searched interval
                         i, bb // entire interval
                     );

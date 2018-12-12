@@ -38,21 +38,21 @@ inline void runAlgo4(TIndex & index, TText const & text, TContainer & c, SearchP
 
             TIter it_zero_errors[end_pos - begin_pos];
             value_type hits[end_pos - begin_pos] = {};
-
-            auto delegate = [&hits, &it_zero_errors, begin_pos, &params, textLength, new_overlap, &text](
+            vector<vector<Pair<uint16_t, uint32_t>>> hits_occ(end_pos - begin_pos);
+            auto delegate = [&hits, &hits_occ, &it_zero_errors, begin_pos, &params, textLength, new_overlap, &text](
                 TIter it, auto const & /*read*/, unsigned const errors_spent)
             {
                 uint64_t const bb = std::min(textLength - 1, begin_pos + params.length - 1 + params.length - new_overlap);
                 if (errors_spent == 0)
                 {
-                    extend3<errors>(it, hits, it_zero_errors, errors - errors_spent, text, params.length,
+                    extend3<errors>(it, hits, hits_occ, it_zero_errors, errors - errors_spent, text, params.length,
                         begin_pos + params.length - new_overlap, begin_pos + params.length - 1, // searched interval
                         begin_pos, bb // entire interval
                     );
                 }
                 else
                 {
-                    extend(it, hits, errors - errors_spent, text, params.length,
+                    extend(it, hits, hits_occ, errors - errors_spent, text, params.length,
                         begin_pos + params.length - new_overlap, begin_pos + params.length - 1, // searched interval
                         begin_pos, bb // entire interval
                     );
@@ -71,10 +71,14 @@ inline void runAlgo4(TIndex & index, TText const & text, TContainer & c, SearchP
                         auto const occ_pos = posGlobalize(occ, limits);
                         c[occ_pos] = hits[j - begin_pos];
                     }
+                    for ( int i=0; i< hits_occ[j-begin_pos].size();i++)
+                        cout << hits_occ[j-begin_pos][i].i1 << " " << hits_occ[j-begin_pos][i].i2 << '\n';
                 }
                 else
                 {
                     c[j] = hits[j - begin_pos];
+                    for ( int i=0; i< hits_occ[j-begin_pos].size();i++)
+                        cout << hits_occ[j-begin_pos][i].i1 << " " << hits_occ[j-begin_pos][i].i2 << '\n';
                 }
             }
         }
